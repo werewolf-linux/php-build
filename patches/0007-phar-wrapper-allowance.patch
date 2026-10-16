@@ -1,0 +1,21 @@
+SPDX-License-Identifier: PHP-3.01
+Subject: [PATCH 7/7] Register the phar:// wrapper only when allowed
+Upstream-Status: Inappropriate [fixed Werewolf appliance policy]
+Reference: werewolf docs/design/hardened-interpreters.md
+Base-Commit: 678778973bb4d4185c06ef1320de50f1a975d3c8
+
+diff --git a/ext/phar/phar.c b/ext/phar/phar.c
+--- a/ext/phar/phar.c
++++ b/ext/phar/phar.c
+@@ -3415,6 +3415,11 @@
+ 	phar_intercept_functions_init();
+ 	phar_save_orig_functions();
+ 
++	/* Werewolf: no phar:// wrapper, which opens archives a request may have
++	 * uploaded, unless the image allows phar. */
++	if (!php_werewolf_allowed("phar")) {
++		return SUCCESS;
++	}
+ 	return php_register_url_stream_wrapper("phar", &php_stream_phar_wrapper);
+ }
+ /* }}} */

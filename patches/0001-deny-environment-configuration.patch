@@ -1,0 +1,36 @@
+SPDX-License-Identifier: PHP-3.01
+Subject: [PATCH 1/7] Never read configuration from the environment
+Upstream-Status: Inappropriate [fixed Werewolf appliance policy]
+Reference: werewolf docs/design/hardened-interpreters.md
+Base-Commit: 678778973bb4d4185c06ef1320de50f1a975d3c8
+
+diff --git a/main/php_ini.c b/main/php_ini.c
+--- a/main/php_ini.c
++++ b/main/php_ini.c
+@@ -439,7 +439,9 @@
+ 		char phprc_path[MAXPATHLEN];
+ #endif
+ 
+-		env_location = getenv("PHPRC");
++		/* Werewolf: the environment never names configuration; a process
++		 * that runs PHP again chooses its own environment. */
++		env_location = NULL;
+ 
+ #ifdef PHP_WIN32
+ 		if (!env_location) {
+@@ -619,12 +621,9 @@
+ 		}
+ 	}
+ 
+-	/* Check for PHP_INI_SCAN_DIR environment variable to override/set config file scan directory */
+-	php_ini_scanned_path = getenv("PHP_INI_SCAN_DIR");
+-	if (!php_ini_scanned_path) {
+-		/* Or fall back using possible --with-config-file-scan-dir setting (defaults to empty string!) */
+-		php_ini_scanned_path = PHP_CONFIG_FILE_SCAN_DIR;
+-	}
++	/* Werewolf: the scan directory is the build's (--with-config-file-scan-dir),
++	 * never the environment's. */
++	php_ini_scanned_path = PHP_CONFIG_FILE_SCAN_DIR;
+ 	php_ini_scanned_path_len = strlen(php_ini_scanned_path);
+ 
+ 	/* Scan and parse any .ini files found in scan path if path not empty. */

@@ -1,0 +1,21 @@
+SPDX-License-Identifier: PHP-3.01
+Subject: [PATCH 6/7] Never load compiled scripts from a file cache
+Upstream-Status: Inappropriate [fixed Werewolf appliance policy]
+Reference: werewolf docs/design/hardened-interpreters.md
+Base-Commit: 678778973bb4d4185c06ef1320de50f1a975d3c8
+
+diff --git a/ext/opcache/zend_accelerator_module.c b/ext/opcache/zend_accelerator_module.c
+--- a/ext/opcache/zend_accelerator_module.c
++++ b/ext/opcache/zend_accelerator_module.c
+@@ -199,6 +199,11 @@
+ 	if (new_value) {
+ 		if (!ZSTR_LEN(new_value)) {
+ 			new_value = NULL;
++		} else {
++			/* Werewolf: compiled scripts are never loaded from a writable
++			 * cache, which a request could rewrite. */
++			zend_error(E_WARNING, "opcache.file_cache refused: werewolf never loads compiled scripts from a file cache");
++			return FAILURE;
+ 		}
+ 	}
+ 	OnUpdateString(entry, new_value, mh_arg1, mh_arg2, mh_arg3, stage);

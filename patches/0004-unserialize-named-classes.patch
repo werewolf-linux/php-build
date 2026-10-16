@@ -1,0 +1,59 @@
+SPDX-License-Identifier: PHP-3.01
+Subject: [PATCH 4/7] Unserialize only the classes allowed_classes names
+Upstream-Status: Inappropriate [fixed Werewolf appliance policy]
+Reference: werewolf docs/design/hardened-interpreters.md
+Base-Commit: 678778973bb4d4185c06ef1320de50f1a975d3c8
+
+diff --git a/ext/standard/var.c b/ext/standard/var.c
+--- a/ext/standard/var.c
++++ b/ext/standard/var.c
+@@ -1474,6 +1474,15 @@
+ 		}
+ 	}
+ 
++	/* Werewolf: objects only of the classes allowed_classes names, unless the
++	 * image allows unserialize; others become __PHP_Incomplete_Class, whose
++	 * methods never run. */
++	if (!class_hash && !php_werewolf_unserialize_objects) {
++		ALLOC_HASHTABLE(class_hash);
++		zend_hash_init(class_hash, 0, NULL, NULL, 0);
++		php_var_unserialize_set_allowed_classes(var_hash, class_hash);
++	}
++
+ 	if (BG(unserialize).level > 1) {
+ 		retval = var_tmp_var(&var_hash);
+ 	} else {
+diff --git a/main/main.c b/main/main.c
+--- a/main/main.c
++++ b/main/main.c
+@@ -793,6 +793,9 @@
+ #endif
+ }
+ /* }}} */
++
++/* Set once at startup, before any script runs; false until then. */
++PHPAPI bool php_werewolf_unserialize_objects = false;
+ 
+ /* {{{ php_werewolf_disable_floor
+  * What starts another program or loads native code stays disabled whatever
+@@ -2411,6 +2414,7 @@
+ 	/* disable certain functions as requested by php.ini */
+ 	zend_disable_functions(INI_STR("disable_functions"));
+ 	php_werewolf_disable_floor();
++	php_werewolf_unserialize_objects = php_werewolf_allowed("unserialize");
+ 
+ 	/* make core report what it should */
+ 	if ((module = zend_hash_str_find_ptr(&module_registry, "core", sizeof("core")-1)) != NULL) {
+diff --git a/main/php.h b/main/php.h
+--- a/main/php.h
++++ b/main/php.h
+@@ -288,6 +288,9 @@
+  * PHP_WEREWOLF_ALLOW_DIR on its read-only root. php.ini, argv and the
+  * environment allow nothing. */
+ PHPAPI bool php_werewolf_allowed(const char *name);
++/* php_werewolf_unserialize_objects is whether unserialize() makes objects of
++ * classes allowed_classes does not name: the image allows unserialize. */
++extern PHPAPI bool php_werewolf_unserialize_objects;
+ #ifdef HAVE_SYSLOG_H
+ #include "php_syslog.h"
+ #define php_log_err(msg) php_log_err_with_severity(msg, LOG_NOTICE)

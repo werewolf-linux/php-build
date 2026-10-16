@@ -1,0 +1,41 @@
+SPDX-License-Identifier: PHP-3.01
+Subject: [PATCH 3/7] Keep the functions that start programs disabled
+Upstream-Status: Inappropriate [fixed Werewolf appliance policy]
+Reference: werewolf docs/design/hardened-interpreters.md
+Base-Commit: 678778973bb4d4185c06ef1320de50f1a975d3c8
+
+diff --git a/main/main.c b/main/main.c
+--- a/main/main.c
++++ b/main/main.c
+@@ -791,6 +791,23 @@
+ 	}
+ 	return fstatat(AT_FDCWD, path, &st, AT_SYMLINK_NOFOLLOW) == 0 && S_ISREG(st.st_mode);
+ #endif
++}
++/* }}} */
++
++/* {{{ php_werewolf_disable_floor
++ * What starts another program or loads native code stays disabled whatever
++ * php.ini says, unless the image allows it by the function's name. */
++static void php_werewolf_disable_floor(void)
++{
++	static const char *const floor[] = {
++		"dl", "exec", "passthru", "pcntl_exec", "popen", "proc_open", "shell_exec", "system",
++	};
++
++	for (size_t i = 0; i < sizeof(floor) / sizeof(floor[0]); i++) {
++		if (!php_werewolf_allowed(floor[i])) {
++			zend_disable_functions(floor[i]);
++		}
++	}
+ }
+ /* }}} */
+ 
+@@ -2393,6 +2410,7 @@
+ 
+ 	/* disable certain functions as requested by php.ini */
+ 	zend_disable_functions(INI_STR("disable_functions"));
++	php_werewolf_disable_floor();
+ 
+ 	/* make core report what it should */
+ 	if ((module = zend_hash_str_find_ptr(&module_registry, "core", sizeof("core")-1)) != NULL) {

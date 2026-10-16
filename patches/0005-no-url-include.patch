@@ -1,0 +1,37 @@
+SPDX-License-Identifier: PHP-3.01
+Subject: [PATCH 5/7] Never include code from a URL
+Upstream-Status: Inappropriate [fixed Werewolf appliance policy]
+Reference: werewolf docs/design/hardened-interpreters.md
+Base-Commit: 678778973bb4d4185c06ef1320de50f1a975d3c8
+
+diff --git a/main/main.c b/main/main.c
+--- a/main/main.c
++++ b/main/main.c
+@@ -811,6 +811,18 @@
+ 			zend_disable_functions(floor[i]);
+ 		}
+ 	}
++}
++/* }}} */
++
++/* {{{ PHP_INI_MH
++ * Werewolf: code is never included from a URL. */
++static PHP_INI_MH(OnUpdateAllowUrlInclude)
++{
++	if (new_value && zend_ini_parse_bool(new_value)) {
++		zend_error(E_WARNING, "allow_url_include=1 refused: werewolf never includes code from a URL");
++		return FAILURE;
++	}
++	return OnUpdateBool(entry, new_value, mh_arg1, mh_arg2, mh_arg3, stage);
+ }
+ /* }}} */
+ 
+@@ -919,7 +931,7 @@
+ 	PHP_INI_ENTRY("max_multipart_body_parts",	"-1",			PHP_INI_SYSTEM|PHP_INI_PERDIR,		NULL)
+ 
+ 	STD_PHP_INI_BOOLEAN("allow_url_fopen",		"1",		PHP_INI_SYSTEM,		OnUpdateBool,		allow_url_fopen,		php_core_globals,		core_globals)
+-	STD_PHP_INI_BOOLEAN("allow_url_include",	"0",		PHP_INI_SYSTEM,		OnUpdateBool,		allow_url_include,		php_core_globals,		core_globals)
++	STD_PHP_INI_BOOLEAN("allow_url_include",	"0",		PHP_INI_SYSTEM,		OnUpdateAllowUrlInclude,		allow_url_include,		php_core_globals,		core_globals)
+ 	STD_PHP_INI_BOOLEAN("enable_post_data_reading",	"1",	PHP_INI_SYSTEM|PHP_INI_PERDIR,	OnUpdateBool,	enable_post_data_reading,	php_core_globals,	core_globals)
+ 
+ 	STD_PHP_INI_ENTRY("realpath_cache_size",	"4096K",	PHP_INI_SYSTEM,		OnUpdateLong,	realpath_cache_size_limit,	virtual_cwd_globals,	cwd_globals)

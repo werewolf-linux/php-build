@@ -1,0 +1,6 @@
+# Generated build context, packages and signing material.
+/build/
+/artifacts/
+__pycache__/
+*.pyc
+*.rsa

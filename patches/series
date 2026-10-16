@@ -1,0 +1,7 @@
+0001-deny-environment-configuration.patch
+0002-werewolf-allowances.patch
+0003-function-floor.patch
+0004-unserialize-named-classes.patch
+0005-no-url-include.patch
+0006-no-opcache-file-cache.patch
+0007-phar-wrapper-allowance.patch

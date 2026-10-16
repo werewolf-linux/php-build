@@ -1,0 +1,63 @@
+SPDX-License-Identifier: PHP-3.01
+Subject: [PATCH 2/7] Read allowances from the read-only root
+Upstream-Status: Inappropriate [fixed Werewolf appliance policy]
+Reference: werewolf docs/design/hardened-interpreters.md
+Base-Commit: 678778973bb4d4185c06ef1320de50f1a975d3c8
+
+diff --git a/main/main.c b/main/main.c
+--- a/main/main.c
++++ b/main/main.c
+@@ -23,6 +23,7 @@
+ #include "php.h"
+ #include <stdio.h>
+ #include <fcntl.h>
++#include <sys/stat.h>
+ #ifdef PHP_WIN32
+ #include "win32/time.h"
+ #include "win32/signal.h"
+@@ -766,6 +767,30 @@
+ 			return FAILURE;
+ 	}
+ 	return SUCCESS;
++}
++/* }}} */
++
++#ifndef PHP_WEREWOLF_ALLOW_DIR
++# define PHP_WEREWOLF_ALLOW_DIR "/etc/werewolf/allow/php"
++#endif
++
++/* {{{ php_werewolf_allowed
++ * A link is not an allowance: one with a lock time will be a link, and is
++ * refused until PHP knows how to read one. */
++PHPAPI bool php_werewolf_allowed(const char *name)
++{
++#ifdef PHP_WIN32
++	return false;
++#else
++	char path[MAXPATHLEN];
++	struct stat st;
++	int n = snprintf(path, sizeof(path), "%s/%s", PHP_WEREWOLF_ALLOW_DIR, name);
++
++	if (n < 0 || (size_t) n >= sizeof(path)) {
++		return false;
++	}
++	return fstatat(AT_FDCWD, path, &st, AT_SYMLINK_NOFOLLOW) == 0 && S_ISREG(st.st_mode);
++#endif
+ }
+ /* }}} */
+ 
+diff --git a/main/php.h b/main/php.h
+--- a/main/php.h
++++ b/main/php.h
+@@ -283,6 +283,11 @@
+ PHPAPI bool php_during_module_startup(void);
+ PHPAPI bool php_during_module_shutdown(void);
+ PHPAPI bool php_get_module_initialized(void);
++/* Werewolf (docs/design/hardened-interpreters.md): php_werewolf_allowed
++ * reports whether the image allows name, an empty regular file in
++ * PHP_WEREWOLF_ALLOW_DIR on its read-only root. php.ini, argv and the
++ * environment allow nothing. */
++PHPAPI bool php_werewolf_allowed(const char *name);
+ #ifdef HAVE_SYSLOG_H
+ #include "php_syslog.h"
+ #define php_log_err(msg) php_log_err_with_severity(msg, LOG_NOTICE)
